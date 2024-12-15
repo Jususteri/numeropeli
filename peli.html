@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10x10 Ruudukko Säännöillä</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            margin-top: 20px;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(10, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 5px;
+            justify-content: center;
+            margin: 20px auto;
+        }
+        button {
+            width: 50px;
+            height: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid #ccc;
+            outline: none;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        button.invalid {
+            background-color: #ffcccc; /* Punainen, kun siirto ei kelpaa */
+        }
+    </style>
+</head>
+<body>
+    <h1>10x10 Ruudukko</h1>
+    <p>Vasen klikkaus lisää numeron, oikea klikkaus kumoaa viimeisimmän siirron.<br> 
+    Numeron voi lisätä sääntöjen mukaan: Vaaka/pysty 2 ruutua väliin, ristikkäin 1 ruutu väliin.</p>
+    <div id="grid"></div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        let currentNumber = 1; // Seuraava numero
+        const moveStack = []; // Tallennetut siirrot (napit ja indeksit)
+
+        // Luodaan 10x10 ruudukko
+        const buttons = [];
+        for (let i = 0; i < 100; i++) {
+            const button = document.createElement('button');
+            button.dataset.index = i;
+
+            // Hiiren siirto ruudun päälle: tarkista säännöt
+            button.addEventListener('mouseenter', () => {
+                if (!button.innerText && !isMoveValid(parseInt(button.dataset.index))) {
+                    button.classList.add('invalid');
+                }
+            });
+
+            // Hiiren poistuminen ruudusta: palauta normaali tila
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('invalid');
+            });
+
+            // Vasen klikkaus: Lisää numero, jos sääntö täyttyy
+            button.addEventListener('click', () => {
+                const index = parseInt(button.dataset.index);
+                if (!button.innerText && isMoveValid(index)) {
+                    button.innerText = currentNumber++;
+                    moveStack.push(index);
+                }
+            });
+
+            // Oikea klikkaus: Kumoa viimeisin siirto
+            button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const lastMove = moveStack.pop();
+                if (lastMove !== undefined) {
+                    buttons[lastMove].innerText = '';
+                    currentNumber--;
+                }
+            });
+
+            grid.appendChild(button);
+            buttons.push(button);
+        }
+
+        // Tarkistaa onko siirto sääntöjen mukainen
+        function isMoveValid(targetIndex) {
+            if (moveStack.length === 0) return true; // Ensimmäinen siirto sallittu mihin vain
+
+            const lastIndex = moveStack[moveStack.length - 1];
+            const lastRow = Math.floor(lastIndex / 10);
+            const lastCol = lastIndex % 10;
+
+            const targetRow = Math.floor(targetIndex / 10);
+            const targetCol = targetIndex % 10;
+
+            const rowDiff = Math.abs(targetRow - lastRow);
+            const colDiff = Math.abs(targetCol - lastCol);
+
+            // Vaaka/pystysuunta: 2 ruutua väliin
+            if ((rowDiff === 0 && colDiff === 3) || (rowDiff === 3 && colDiff === 0)) return true;
+
+            // Ristikkäin (vinottain): 1 ruutu väliin
+            if (rowDiff === 2 && colDiff === 2) return true;
+
+            return false; // Siirto ei kelpaa
+        }
+    </script>
+</body>
+</html>
