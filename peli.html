@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numeropeli</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            text-align: center;
+            background-color: #2c3e50; /* Tumma tausta */
+            margin: 0;
+            padding: 0;
+            color: #ecf0f1; /* Vaalea teksti */
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        h1 {
+            margin: 20px 0 10px;
+            font-family: 'Press Start 2P', cursive;
+            color: #f39c12;
+        }
+        #instructions {
+            text-align: left;
+            width: 200px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        #grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(10, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 5px;
+            justify-content: center;
+            margin: 10px auto;
+        }
+        button {
+            width: 50px;
+            height: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid #ccc;
+            outline: none;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        button.invalid {
+            background-color: #ffcccc; /* Punainen, kun siirto ei kelpaa */
+        }
+        button.valid {
+            background-color: #ccffcc; /* Vihreä, kun siirto on mahdollinen */
+        }
+        button.active {
+            border: 3px solid #f39c12; /* Kehys viimeisimmälle siirrolle */
+        }
+        #error-message {
+            font-size: 16px;
+            color: #e74c3c;
+            margin-top: 10px;
+            height: 20px;
+        }
+        #instructions b::before, p::before {
+            content: "\2726  "; /* Korvaa ranskalaiset viivat tähdillä */
+            color: #f39c12;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Vasemmanpuoleinen ohje -->
+        <div id="instructions">
+            <h2>Ohjeet</h2>
+            <p>Ensimmäinen numero (1) mihin tahansa ruutuun.</p>
+            <p>Seuraavat numerot:<br>
+            - Vaaka/pysty: 2 ruutua väliin.<br>
+            - Vinottain: 1 ruutu väliin.</p>
+            <p>Vihreä = kelpaa<br>Punainen = ei kelpaa</p>
+            <p>Vasen klikkaus = lisää numero<br>
+            Oikea klikkaus = peruuta siirto.</p>
+        </div>
+
+        <!-- Peli -->
+        <div id="grid-container">
+            <h1>Numeropeli</h1>
+            <div id="grid"></div>
+            <div id="error-message"></div>
+        </div>
+
+        <!-- Oikeanpuoleinen ohje -->
+        <div id="instructions">
+            <h2>Tavoite</h2>
+            <p>Lisää numeroita ruudukkoon sääntöjä noudattaen.</p>
+            <b>Yritä päästä numeroon 100!</b>
+        </div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const errorMessage = document.getElementById('error-message');
+        let currentNumber = 1; // Seuraava numero
+        const moveStack = []; // Tallennetut siirrot (napit ja indeksit)
+
+        // Luodaan 10x10 ruudukko
+        const buttons = [];
+        for (let i = 0; i < 100; i++) {
+            const button = document.createElement('button');
+            button.dataset.index = i;
+
+            // Hiiren siirto ruudun päälle: tarkista säännöt
+            button.addEventListener('mouseenter', () => {
+                clearError();
+                if (!button.innerText) {
+                    if (isMoveValid(parseInt(button.dataset.index))) {
+                        button.classList.add('valid');
+                    } else {
+                        button.classList.add('invalid');
+                    }
+                }
+            });
+
+            // Hiiren poistuminen ruudusta: palauta normaali tila
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('invalid', 'valid');
+            });
+
+            // Vasen klikkaus: Lisää numero, jos sääntö täyttyy
+            button.addEventListener('click', () => {
+                const index = parseInt(button.dataset.index);
+                if (button.innerText) {
+                    showError("Siirto ei mahdollinen");
+                } else if (isMoveValid(index)) {
+                    button.innerText = currentNumber++;
+                    moveStack.push(index);
+                    highlightLastMove();
+                } else {
+                    showError("Siirto ei mahdollinen");
+                }
+            });
+
+            // Oikea klikkaus: Kumoa viimeisin siirto
+            button.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const lastMove = moveStack.pop();
+                if (lastMove !== undefined) {
+                    buttons[lastMove].innerText = '';
+                    currentNumber--;
+                    highlightLastMove();
+                    clearError();
+                }
+            });
+
+            grid.appendChild(button);
+            buttons.push(button);
+        }
+
+        // Tarkistaa onko siirto sääntöjen mukainen
+        function isMoveValid(targetIndex) {
+            if (moveStack.length === 0) return true; // Ensimmäinen siirto sallittu mihin vain
+
+            const lastIndex = moveStack[moveStack.length - 1];
+            const lastRow = Math.floor(lastIndex / 10);
+            const lastCol = lastIndex % 10;
+
+            const targetRow = Math.floor(targetIndex / 10);
+            const targetCol = targetIndex % 10;
+
+            const rowDiff = Math.abs(targetRow - lastRow);
+            const colDiff = Math.abs(targetCol - lastCol);
+
+            // Vaaka/pystysuunta: 2 ruutua väliin
+            if ((rowDiff === 0 && colDiff === 3) || (rowDiff === 3 && colDiff === 0)) return true;
+
+            // Ristikkäin (vinottain): 1 ruutu väliin
+            if (rowDiff === 2 && colDiff === 2) return true;
+
+            return false; // Siirto ei kelpaa
+        }
+
+        // Korostaa viimeisintä siirtoa
+        function highlightLastMove() {
+            buttons.forEach(button => button.classList.remove('active'));
+            if (moveStack.length > 0) {
+                buttons[moveStack[moveStack.length - 1]].classList.add('active');
+            }
+        }
+
+        // Näytä virheviesti
+        function showError(message) {
+            errorMessage.textContent = message;
+        }
+
+        // Tyhjennä virheviesti
+        function clearError() {
+            errorMessage.textContent = '';
+        }
+    </script>
+</body>
+</html>
